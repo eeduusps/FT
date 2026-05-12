@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Finance Tracker</title>
+<title>Finance Tracker</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -109,23 +109,32 @@ gap:20px;
 }
 
 .topbar{
-display:flex;
-justify-content:space-between;
+display:grid;
+grid-template-columns:60px 1fr auto;
 align-items:center;
 background:rgba(255,255,255,.05);
 padding:20px;
 border-radius:24px;
 backdrop-filter:blur(15px);
 border:1px solid var(--border);
+gap:15px;
 }
 
 .topbar h1{
+text-align:center;
 font-size:28px;
+margin:0;
+}
+
+.mobile-menu-btn{
+left:20px;
 }
 
 .actions{
 display:flex;
 gap:12px;
+justify-content:flex-end;
+flex-wrap:wrap;
 }
 
 .btn{
@@ -988,12 +997,7 @@ populateYearFilter();
 
 render();
 
-document.getElementById('date').value =
-new Date().toISOString().split('T')[0];
-document.getElementById('name').value = '';
-document.getElementById('amount').value = '';
-document.getElementById('note').value = '';
-document.getElementById('receipt').value = '';
+resetTransactionForm();
 
 alert('Transaksi berhasil ditambahkan');
 
@@ -1431,6 +1435,8 @@ document
 .getElementById('transactionModal')
 .classList.remove('active');
 
+resetTransactionForm();
+
 }
 
 function openAnalyticsModal(){
@@ -1618,7 +1624,15 @@ const autoSave = confirm(
 );
 
 if(autoSave){
+
 addTransaction();
+
+}else{
+
+resetTransactionForm();
+
+closeModal();
+
 }
 
 },300);
@@ -1861,7 +1875,41 @@ transaction.note || '';
 
 openModal();
 
-editTransactionId = null;
+function editTransaction(id){
+
+document.getElementById('modalTitle').innerText =
+'Edit Transaksi';
+
+const transaction =
+transactions.find(t => t.id === id);
+
+if(!transaction){
+return;
+}
+
+editTransactionId = id;
+
+document.getElementById('date').value =
+transaction.date;
+
+document.getElementById('name').value =
+transaction.name;
+
+document.getElementById('category').value =
+transaction.category;
+
+document.getElementById('type').value =
+transaction.type;
+
+document.getElementById('amount').value =
+transaction.amount;
+
+document.getElementById('note').value =
+transaction.note || '';
+
+openModal();
+
+}
 
 document.getElementById('modalTitle').innerText =
 'Tambah Transaksi';
@@ -2011,6 +2059,50 @@ if(window.innerWidth < 980){
 closeMobileMenu();
 
 }
+
+}
+
+function resetTransactionForm(){
+
+document.getElementById('date').value =
+new Date().toISOString().split('T')[0];
+
+document.getElementById('name').value = '';
+
+document.getElementById('category').value = '';
+
+document.getElementById('type').value = 'income';
+
+document.getElementById('amount').value = '';
+
+document.getElementById('note').value = '';
+
+/* reset upload file */
+
+const receiptInput =
+document.getElementById('receipt');
+
+receiptInput.value = '';
+
+/* reset quick scanner */
+
+const quickScanner =
+document.getElementById('quickScanner');
+
+quickScanner.value = '';
+
+/* reset OCR */
+
+document.getElementById('ocrResult').style.display = 'none';
+
+document.getElementById('ocrContent').innerHTML = '';
+
+/* reset edit mode */
+
+editTransactionId = null;
+
+document.getElementById('modalTitle').innerText =
+'Tambah Transaksi';
 
 }
 
