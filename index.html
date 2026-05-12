@@ -384,6 +384,48 @@ gap:12px;
 margin-top:20px;
 flex-wrap:wrap;
 }
+
+.mobile-menu-btn{
+display:none;
+position:fixed;
+top:20px;
+left:20px;
+z-index:99999;
+background:var(--accent);
+border:none;
+color:white;
+width:50px;
+height:50px;
+border-radius:14px;
+font-size:20px;
+box-shadow:var(--shadow);
+}
+
+@media(max-width:980px){
+
+.mobile-menu-btn{
+display:block;
+}
+
+.sidebar{
+position:fixed;
+left:-320px;
+top:0;
+height:100vh;
+width:280px;
+z-index:9999;
+transition:.3s;
+background:var(--card);
+}
+
+.sidebar.active{
+left:0;
+}
+
+.container{
+grid-template-columns:1fr;
+}
+}
 </style>
 </head>
 <body>
@@ -462,7 +504,7 @@ ID atau password salah
 
 <div class="menu">
 
-<button onclick="scrollToSection('dashboardSection')">
+<button onclick="scrollToAndClose('dashboardSection')">
 <i class="fa-solid fa-chart-line"></i>
  Dashboard
 </button>
@@ -493,6 +535,11 @@ ID atau password salah
 <div class="main">
 
 <div class="topbar">
+
+<button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+<i class="fa-solid fa-bars"></i>
+</button>
+
 <h1>Finance Tracker</h1>
 
 <div class="actions">
@@ -1912,6 +1959,28 @@ document.getElementById('categoryList');
 datalist.innerHTML = categories.map(cat => `
 <option value="${cat}">
 `).join('');
+
+}
+
+function toggleMobileMenu(){
+
+document
+.querySelector('.sidebar')
+.classList.toggle('active');
+
+}
+
+function scrollToAndClose(id){
+
+scrollToSection(id);
+
+if(window.innerWidth < 980){
+
+document
+.querySelector('.sidebar')
+.classList.remove('active');
+
+}
 
 }
 
