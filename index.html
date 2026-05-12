@@ -121,9 +121,26 @@ gap:15px;
 }
 
 .topbar h1{
-text-align:center;
-font-size:28px;
-margin:0;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+}
+
+@media(max-width:768px){
+
+.topbar{
+grid-template-columns:50px 1fr;
+}
+
+.actions{
+grid-column:1 / -1;
+justify-content:center;
+}
+
+.topbar h1{
+font-size:20px;
+}
+
 }
 
 .mobile-menu-btn{
@@ -533,7 +550,7 @@ ID atau password salah
  Dashboard
 </button>
 
-<button onclick="scrollToSection('transactionSection')">
+<button onclick="scrollToAndClose('transactionSection')">
 <i class="fa-solid fa-money-bill"></i>
  Transaksi
 </button>
@@ -978,12 +995,14 @@ note
 
 if(editTransactionId){
 
-transactions =
-transactions.map(t =>
-t.id === editTransactionId
-? transaction
-: t
+const index =
+transactions.findIndex(
+t => t.id === editTransactionId
 );
+
+if(index !== -1){
+transactions[index] = transaction;
+}
 
 }else{
 
@@ -1424,9 +1443,19 @@ behavior:'smooth'
 }
 
 function openModal(){
+
+/* reset form sebelum buka modal */
+
+resetTransactionForm();
+
+document.getElementById('ocrResult').style.display = 'none';
+
+document.getElementById('ocrContent').innerHTML = '';
+
 document
 .getElementById('transactionModal')
 .classList.add('active');
+
 }
 
 function closeModal(){
@@ -1889,6 +1918,11 @@ return;
 
 editTransactionId = id;
 
+/* buka modal TANPA reset form */
+document
+.getElementById('transactionModal')
+.classList.add('active');
+
 document.getElementById('date').value =
 transaction.date;
 
@@ -1907,7 +1941,8 @@ transaction.amount;
 document.getElementById('note').value =
 transaction.note || '';
 
-openModal();
+/* sembunyikan OCR */
+document.getElementById('ocrResult').style.display = 'none';
 
 }
 
