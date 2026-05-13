@@ -121,30 +121,48 @@ gap:15px;
 }
 
 .topbar h1{
+font-size:24px;
+flex:1;
 white-space:nowrap;
-overflow:hidden;
+overflow:show;
 text-overflow:ellipsis;
 }
 
 @media(max-width:768px){
 
 .topbar{
-grid-template-columns:50px 1fr;
-}
-
-.actions{
-grid-column:1 / -1;
+display:flex;
+flex-direction:column;
+align-items:center;
 justify-content:center;
+gap:15px;
+padding-top:70px;
+text-align:center;
 }
 
 .topbar h1{
-font-size:20px;
+font-size:22px;
+white-space:nowrap;
+overflow:show;
+text-overflow:ellipsis;
+max-width:100%;
 }
 
+.actions{
+width:100%;
+display:flex;
+flex-direction:column;
+gap:10px;
+justify-content:center;
+align-items:stretch;
 }
 
-.mobile-menu-btn{
-left:20px;
+.actions .btn,
+.actions label.btn{
+width:100%;
+justify-content:center;
+}
+
 }
 
 .actions{
@@ -539,7 +557,7 @@ ID atau password salah
 
 <div class="sidebar">
 <div class="logo">
-<i class="fa-solid fa-wallet"></i>
+<i class="fa-solid fa-coins"></i>
  d'arch
 </div>
 
@@ -581,7 +599,10 @@ ID atau password salah
 <i class="fa-solid fa-bars"></i>
 </button>
 
-<h1>Finance Tracker</h1>
+<h1>
+<i class="fa-solid fa-wallet"></i>
+ Finance Tracker
+</h1>
 
 <div class="actions">
 
@@ -600,15 +621,6 @@ ID atau password salah
 <input type="file" accept=".csv" onchange="importCSV(event)" style="display:none;">
 </label>
 
-<button class="btn btn-reset" onclick="clearDatabase()">
-<i class="fa-solid fa-trash"></i>
- Reset DB
-</button>
-
-<button class="btn btn-logout" onclick="logoutApp()">
-<i class="fa-solid fa-right-from-bracket"></i>
- Logout
-</button>
 </div>
 </div>
 
@@ -747,18 +759,17 @@ placeholder="Kategori transaksi"
 <option value="Lainnya">
 </datalist>
 
-<input
-type="text"
-id="type"
-list="typeList"
-placeholder="Tipe transaksi"
-value="income"
->
+<select id="type">
 
-<datalist id="typeList">
 <option value="income">
+Income
+</option>
+
 <option value="expense">
-</datalist>
+Expense
+</option>
+
+</select>
 
 <input 
 type="number"
@@ -784,7 +795,7 @@ step="0.01"
 
 <div class="modal-actions">
 
-<button class="btn" onclick="addTransaction()">
+<button class="btn" id="saveTransactionBtn" onclick="addTransaction()">
 Tambah Transaksi
 </button>
 
@@ -932,6 +943,14 @@ const store = tx.objectStore('transactions');
 
 store.clear();
 
+if(cashflowChart){
+cashflowChart.destroy();
+}
+
+if(categoryChart){
+categoryChart.destroy();
+}
+
 transactions = [];
 render();
 
@@ -968,17 +987,52 @@ ${year}
 });
 
 }
+document.getElementById('type').value = '';
+
+function normalizeDate(dateStr){
+
+if(!dateStr) return '';
+
+dateStr = dateStr.trim();
+
+/* format YYYY-MM-DD */
+if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)){
+return dateStr;
+}
+
+/* format DD/MM/YYYY atau DD-MM-YYYY */
+if(/^\d{2}[\/-]\d{2}[\/-]\d{4}$/.test(dateStr)){
+
+const parts = dateStr.split(/[\/-]/);
+
+return `${parts[2]}-${parts[1]}-${parts[0]}`;
+
+}
+
+/* format DD/MM/YY */
+if(/^\d{2}[\/-]\d{2}[\/-]\d{2}$/.test(dateStr)){
+
+const parts = dateStr.split(/[\/-]/);
+
+return `20${parts[2]}-${parts[1]}-${parts[0]}`;
+
+}
+
+return '';
+
+}
+
 
 function addTransaction(){
+
 const date = document.getElementById('date').value;
 const name = document.getElementById('name').value;
 const category = document.getElementById('category').value;
-const type = document.getElementById('type').value;
+const type = document.getElementById('type').value.toLowerCase();
 const amount = parseFloat(document.getElementById('amount').value) || 0;
 const note = document.getElementById('note').value;
 
-
-if(!date || !name || amount <= 0){
+if(!date || !name || !type || amount <= 0){
 alert('Lengkapi data');
 return;
 }
@@ -989,20 +1043,21 @@ date,
 name,
 category,
 type,
-amount:amount,
+amount,
 note
 };
 
-if(editTransactionId){
+saveTransaction(transaction);
 
-const index =
-transactions.findIndex(
-t => t.id === editTransactionId
+/* update array lokal */
+
+const existingIndex = transactions.findIndex(
+t => t.id === transaction.id
 );
 
-if(index !== -1){
-transactions[index] = transaction;
-}
+if(existingIndex !== -1){
+
+transactions[existingIndex] = transaction;
 
 }else{
 
@@ -1010,26 +1065,41 @@ transactions.push(transaction);
 
 }
 
-saveTransaction(transaction);
-
 populateYearFilter();
 
 render();
 
 resetTransactionForm();
 
-alert('Transaksi berhasil ditambahkan');
+document.getElementById('saveTransactionBtn').innerText =
+'Tambah Transaksi';
+
+document.getElementById('modalTitle').innerText =
+'Tambah Transaksi';
 
 editTransactionId = null;
 
 closeModal();
 
-render();
+alert('Transaksi berhasil disimpan');
+
 }
+
+
 function deleteTransaction(id){
+
+const ok = confirm('Hapus transaksi ini?');
+
+if(!ok){
+return;
+}
+
 transactions = transactions.filter(t=>t.id !== id);
+
 deleteTransactionDB(id);
+
 render();
+
 }
 
 function render(){
@@ -1042,7 +1112,8 @@ const selectedMonth =
 document.getElementById('monthFilter')?.value || 'all';
 
 const filteredTransactions =
-transactions.filter(t => {
+transactions
+.filter(t => {
 
 const date = new Date(t.date);
 
@@ -1063,6 +1134,11 @@ selectedMonth === 'all'
 return matchYear && matchMonth;
 
 });
+
+filteredTransactions.sort(
+(a,b)=>
+new Date(b.date) - new Date(a.date)
+);
 
 let income = 0;
 let expense = 0;
@@ -1305,27 +1381,41 @@ parseReceiptAI(text);
 }
 
 function exportCSV(){
-let csv = 'id;date;name;category;type;amount;note\n';
+
+let csv =
+'id;date;name;category;type;amount;note\n';
 
 transactions.forEach(t=>{
-csv +=
-t.id + ';' +
-'"' + t.date + '";' +
-'"' + t.name + '";' +
-'"' + t.category + '";' +
-'"' + t.type + '";' +
-t.amount + ';' +
-'"' + (t.note || '') + '"\n';
+
+csv += [
+t.id,
+`"${t.date}"`,
+`"${t.name.replace(/"/g,'""')}"`,
+`"${t.category.replace(/"/g,'""')}"`,
+`"${t.type.replace(/"/g,'""')}"`,
+t.amount,
+`"${(t.note || '').replace(/"/g,'""')}"`
+].join(';') + '\n';
+
 });
 
-const blob = new Blob([
-csv
-],{type:'text/csv;charset=utf-8;'});
+const blob = new Blob(
+[csv],
+{
+type:'text/csv;charset=utf-8;'
+}
+);
 
 const a = document.createElement('a');
+
 a.href = URL.createObjectURL(blob);
-a.download = 'keuanganmu.csv';
+
+a.download = 'finance-tracker.csv';
+
+document.body.appendChild(a);
 a.click();
+document.body.removeChild(a);
+
 }
 
 function importCSV(event){
@@ -1342,53 +1432,83 @@ const reader = new FileReader();
 reader.onload = function(e){
 
 const text = e.target.result;
-const rows = text.split('\n');
 
-rows.forEach(row=>{
+const rows = text
+.split(/\r?\n/)
+.filter(r => r.trim() !== '');
 
-if(!row.trim()) return;
+if(rows.length <= 1){
+alert('CSV kosong');
+return;
+}
 
-const cols = row.split(';');
+/* skip header */
+for(let i = 1; i < rows.length; i++){
 
-if(cols.length < 5) return;
+const row = rows[i];
 
-let rawDate = cols[0].replace(/"/g,'').trim();
+/* regex CSV aman */
+const cols = row
+.split(';')
+.map(v => v.trim());
 
-let formattedDate = rawDate;
+if(!cols || cols.length < 7){
+continue;
+}
 
-if(rawDate.includes('/')){
+const clean = v =>
+(v || '')
+.replace(/^"|"$/g,'')
+.replace(/""/g,'"')
+.trim();
 
-const parts = rawDate.split('/');
 
-formattedDate =
-parts[2] + '-' +
-parts[1].padStart(2,'0') + '-' +
-parts[0].padStart(2,'0');
+
+const transaction = {
+
+id: Number(clean(cols[0])) || Date.now()+i,
+
+date: normalizeDate(clean(cols[1])),
+
+name: clean(cols[2]),
+
+category: clean(cols[3]),
+
+type: clean(cols[4]).toLowerCase(),
+
+amount: parseFloat(clean(cols[5])) || 0,
+
+note: clean(cols[6])
+
+};
+
+/* validasi */
+
+if(
+!transaction.date ||
+!transaction.name ||
+transaction.amount <= 0
+){
+continue;
+}
+
+/* hindari duplicate */
+
+const exists = transactions.some(
+t => t.id === transaction.id
+);
+
+if(!exists){
+
+transactions.push(transaction);
+
+saveTransaction(transaction);
 
 }
 
-const transaction = {
-id: Date.now() + Math.random(),
+}
 
-date: formattedDate,
-
-name: cols[1].replace(/"/g,'').trim(),
-
-category: cols[2].replace(/"/g,'').trim(),
-
-type: cols[3].replace(/"/g,'').trim().toLowerCase(),
-
-amount: Number(cols[4]),
-
-note: cols[5]
-? cols[5].replace(/"/g,'').trim()
-: ''
-};
-
-transactions.push(transaction);
-saveTransaction(transaction);
-
-});
+populateYearFilter();
 
 render();
 
@@ -1396,7 +1516,9 @@ alert('Import CSV berhasil');
 
 };
 
-reader.readAsText(file);
+reader.readAsText(file,'UTF-8');
+
+event.target.value = '';
 
 }
 
@@ -1519,10 +1641,30 @@ parseReceiptAI(text);
 
 /* otomatis isi input receipt */
 
+try{
+
+try{
+
+const receiptInput =
+document.getElementById('receipt');
+
 const dt = new DataTransfer();
+
 dt.items.add(file);
 
-document.getElementById('receipt').files = dt.files;
+receiptInput.files = dt.files;
+
+}catch(err){
+
+console.log('Browser tidak support DataTransfer');
+
+}
+
+}catch(e){
+
+console.log('DataTransfer tidak support');
+
+}
 
 }
 catch(err){
@@ -1564,7 +1706,7 @@ v.replace(/\./g,'')
 ))
 .filter(v => !isNaN(v));
 
-amount = Math.max(...cleaned);
+amount = cleaned[cleaned.length - 1] || 0;
 
 }
 
@@ -1870,7 +2012,43 @@ document
 
 });
 
+function logoutApp(){
+
+const confirmLogout = confirm(
+'Yakin ingin logout?'
+);
+
+if(!confirmLogout){
+return;
+}
+
+/* hapus session login */
+
+localStorage.removeItem('financeLogin');
+
+/* tutup settings modal */
+
+closeSettingsModal();
+
+/* tampilkan login page */
+
+document.getElementById('loginPage').style.display = 'flex';
+
+/* reset form login */
+
+document.getElementById('loginId').value = '';
+
+document.getElementById('loginPassword').value = '';
+
+document.getElementById('loginError').style.display = 'none';
+
+}
+
+
 function editTransaction(id){
+
+document.getElementById('saveTransactionBtn').innerText =
+'Simpan Perubahan';
 
 document.getElementById('modalTitle').innerText =
 'Edit Transaksi';
@@ -1884,41 +2062,7 @@ return;
 
 editTransactionId = id;
 
-document.getElementById('date').value =
-transaction.date;
-
-document.getElementById('name').value =
-transaction.name;
-
-document.getElementById('category').value =
-transaction.category;
-
-document.getElementById('type').value =
-transaction.type;
-
-document.getElementById('amount').value =
-transaction.amount;
-
-document.getElementById('note').value =
-transaction.note || '';
-
-openModal();
-
-function editTransaction(id){
-
-document.getElementById('modalTitle').innerText =
-'Edit Transaksi';
-
-const transaction =
-transactions.find(t => t.id === id);
-
-if(!transaction){
-return;
-}
-
-editTransactionId = id;
-
-/* buka modal TANPA reset form */
+/* buka modal tanpa reset */
 document
 .getElementById('transactionModal')
 .classList.add('active');
@@ -1941,41 +2085,8 @@ transaction.amount;
 document.getElementById('note').value =
 transaction.note || '';
 
-/* sembunyikan OCR */
-document.getElementById('ocrResult').style.display = 'none';
-
-}
-
-document.getElementById('modalTitle').innerText =
-'Tambah Transaksi';
-
-}
-
-function logoutApp(){
-
-localStorage.removeItem('financeLogin');
-
-document
-.getElementById('loginPage')
-.style.display = 'flex';
-
-}
-
-function openSettingsModal(){
-
-document
-.getElementById('settingsModal')
-.classList.add('active');
-
-renderCategoryManager();
-
-}
-
-function closeSettingsModal(){
-
-document
-.getElementById('settingsModal')
-.classList.remove('active');
+document.getElementById('ocrResult').style.display =
+'none';
 
 }
 
@@ -2106,7 +2217,7 @@ document.getElementById('name').value = '';
 
 document.getElementById('category').value = '';
 
-document.getElementById('type').value = 'income';
+document.getElementById('type').value = '';
 
 document.getElementById('amount').value = '';
 
@@ -2138,6 +2249,25 @@ editTransactionId = null;
 
 document.getElementById('modalTitle').innerText =
 'Tambah Transaksi';
+
+}
+
+
+function openSettingsModal(){
+
+document
+.getElementById('settingsModal')
+.classList.add('active');
+
+renderCategoryManager();
+
+}
+
+function closeSettingsModal(){
+
+document
+.getElementById('settingsModal')
+.classList.remove('active');
 
 }
 
@@ -2186,6 +2316,40 @@ Tambah
 </div>
 
 <div id="categoryManager"></div>
+
+<hr style="
+margin:25px 0;
+border:none;
+border-top:1px solid var(--border);
+">
+
+<h3 style="margin-bottom:15px">
+Akun & Database
+</h3>
+
+<div style="
+display:flex;
+gap:12px;
+flex-wrap:wrap;
+">
+
+<button 
+class="btn btn-reset"
+onclick="clearDatabase()"
+>
+<i class="fa-solid fa-trash"></i>
+ Reset Database
+</button>
+
+<button 
+class="btn btn-logout"
+onclick="logoutApp()"
+>
+<i class="fa-solid fa-right-from-bracket"></i>
+ Logout
+</button>
+
+</div>
 
 </div>
 
